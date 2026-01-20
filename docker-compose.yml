@@ -1,0 +1,65 @@
+services:
+  python:
+    build: .
+    container_name: news_sentiment_python
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    volumes:
+      - .:/app
+      - ./credentials:/app/credentials:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/gcp.json
+      - PYTHONUNBUFFERED=1
+      - POLLING_ENABLED=${POLLING_ENABLED}
+      - POLLING_INTERVAL=${POLLING_INTERVAL}
+      - DEDUP_METHOD=${DEDUP_METHOD}
+      - DEDUP_CACHE_SIZE=${DEDUP_CACHE_SIZE}
+      - NEWSDATA_API_KEY=${NEWSDATA_API_KEY}
+      - KAFKA_TOPIC=${KAFKA_TOPIC}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
+      - BIGQUERY_DATASET=${BIGQUERY_DATASET}
+      - BIGQUERY_TABLE=${BIGQUERY_TABLE}
+      - NEWS_QUERY=${NEWS_QUERY}
+      - NEWS_LANGUAGE=${NEWS_LANGUAGE}
+      - NEWS_CATEGORY=${NEWS_CATEGORY}
+      - MAX_RESULTS=${MAX_RESULTS}
+    working_dir: /app
+    command: python producer/producer.py
+    networks:
+      - news_sentiment_network
+    restart: always
+
+  dashboard:
+    build: .
+    container_name: news_sentiment_dashboard
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    volumes:
+      - .:/app
+      - ./credentials:/app/credentials:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/gcp.json
+      - PYTHONUNBUFFERED=1
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
+      - BIGQUERY_DATASET=${BIGQUERY_DATASET}
+      - BIGQUERY_TABLE=${BIGQUERY_TABLE}
+      - DASHBOARD_REFRESH_INTERVAL=${DASHBOARD_REFRESH_INTERVAL}
+    working_dir: /app
+    command: >
+      streamlit run dashboard/apple_news_dashboard.py 
+      --server.port=8501 
+      --server.address=0.0.0.0 
+      --server.enableCORS=false 
+      --server.enableXsrfProtection=false
+    ports:
+      - "8501:8501"
+    networks:
+      - news_sentiment_network
+    depends_on:
+      - python
+
+networks:
+  news_sentiment_network:
+    driver: bridge
